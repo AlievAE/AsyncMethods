@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
+import random
+
 
 class SimpleNN(nn.Module):
     def __init__(self):
@@ -123,7 +125,10 @@ def gradient_from_vector(dataset, param_vector, model, criterion, batch_size=Non
     if batch_size is None:
         batch_size = len(dataset)
 
-    dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
+    indices = list(range(len(dataset)))
+    random_indices = random.sample(indices, batch_size)
+    subset = Subset(dataset, random_indices)
+    dataloader = DataLoader(subset, batch_size=64, shuffle=True)
 
     model.eval()
 
@@ -140,9 +145,6 @@ def gradient_from_vector(dataset, param_vector, model, criterion, batch_size=Non
     total_samples = 0
 
     for images, labels in dataloader:
-        if total_samples + len(images) > batch_size:
-            images = images[:batch_size - total_samples]
-            labels = labels[:batch_size - total_samples]
         outputs = model(images)
         loss = criterion(outputs, labels)
 
@@ -153,10 +155,7 @@ def gradient_from_vector(dataset, param_vector, model, criterion, batch_size=Non
         for name, param in model.named_parameters():
             if param.grad is not None:
                 param_grad_sums[name] += param.grad.clone()
-
         total_samples += len(labels)
-        if total_samples >= batch_size:
-            break
 
     avg_gradients = {name: grad_sum / total_samples for name, grad_sum in param_grad_sums.items()}
 
