@@ -20,7 +20,7 @@ class BaseGD:
               must match number of time distributions ({len(time_distributions)})"
         
         self.workers = [
-            Worker(loss_fn, gradient_fns[i], time_distributions[i], compression_flag=compression_flag, k=compression_size, num_of_dim=initial_x.shape[-1])
+            Worker(loss_fn, gradient_fns[i], time_distributions[i], compression_flag=compression_flag, k=compression_size)
             for i in range(len(gradient_fns))
         ]
         self.current_x = initial_x

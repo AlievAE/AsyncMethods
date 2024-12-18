@@ -1,7 +1,8 @@
 import numpy as np
+import torch
 
 class Worker:
-    def __init__(self, loss_fn, gradient_fn, computation_time=0, compression_flag = 'none', k = 100, num_of_dim = 1):
+    def __init__(self, loss_fn, gradient_fn, computation_time=0, compression_flag = 'none', k = 100):
         """
         Initialize Worker with loss function, gradient function and computation time.
         
@@ -16,7 +17,6 @@ class Worker:
         self.current_x = None
         self.current_gradient = None
         #compression stuff
-        self.dimensions = num_of_dim
         self.K = k
         self.compression_flag = compression_flag
 
@@ -34,6 +34,12 @@ class Worker:
         """
         self.current_x = x
         self.current_gradient = self.gradient_fn(data, x)
+        if self.compression_flag != 'none':
+            if self.compression_flag == 'randk':
+                compressed = self.randk_compress_x(self.current_gradient)
+            if self.compression_flag == 'topk':
+                compressed = self.topk_compress_x(self.current_gradient)
+            self.current_gradient = compressed
         
         # Sample computation time
         if hasattr(self.computation_time, 'rvs'):  # Check if it's a distribution
@@ -54,21 +60,26 @@ class Worker:
         """
         return self.loss_fn(data, x)
     
-    def randk_compress_vector(self, vector):
-        idx = np.random.randint(0, self.dimensions, size=self.K)
-        const = self.dimensions / self.K
-        compressed_vector = np.zeros_like(vector)
-        for i in idx:
-            compressed_vector[i] += vector[i]
-        return const * compressed_vector
-    
-    def topk_compress_vector(self, vector):
-        abs_values = np.abs(vector)
+    def randk_compress_x(self, x):
+        if isinstance(x, torch.Tensor):
+            x = x.cpu().numpy()
+
+        idx = np.random.choice(len(x), size=self.K, replace=False)
+        const = len(x) / self.K
+        compressed_x = np.zeros_like(x)
+        compressed_x[idx] = x[idx]
+        return const * compressed_x
+
+    def topk_compress_x(self, x):
+        if isinstance(x, torch.Tensor):
+            x = x.cpu().numpy()
+
+        abs_values = np.abs(x)
         topk_indices = np.argsort(abs_values)[-self.K:]
-        mask = np.zeros_like(vector, dtype=bool)
+        mask = np.zeros_like(x, dtype=bool)
         mask[topk_indices] = True
-        compressed_vector = np.where(mask, vector, 0)
-        return compressed_vector
+        compressed_x = np.where(mask, x, 0)
+        return compressed_x
 
     @property
     def x(self):
@@ -78,10 +89,4 @@ class Worker:
     @property
     def gradient(self):
         """Get the current gradient value."""
-        if self.compression_flag == 'none':
-            return self.current_gradient
-        if self.compression_flag == 'randk':
-            compressed = self.randk_compress_vector(self.gradient)
-        if self.compression_flag == 'topk':
-            compressed = self.topk_compress_vector(self.gradient)
-        return compressed
+        return self.current_gradient
