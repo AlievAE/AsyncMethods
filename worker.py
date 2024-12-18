@@ -61,9 +61,6 @@ class Worker:
         return self.loss_fn(data, x)
     
     def randk_compress_x(self, x):
-        if isinstance(x, torch.Tensor):
-            x = x.cpu().numpy()
-
         idx = np.random.choice(len(x), size=self.K, replace=False)
         const = len(x) / self.K
         compressed_x = np.zeros_like(x)
@@ -71,9 +68,6 @@ class Worker:
         return const * compressed_x
 
     def topk_compress_x(self, x):
-        if isinstance(x, torch.Tensor):
-            x = x.cpu().numpy()
-
         abs_values = np.abs(x)
         topk_indices = np.argsort(abs_values)[-self.K:]
         mask = np.zeros_like(x, dtype=bool)

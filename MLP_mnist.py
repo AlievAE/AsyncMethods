@@ -5,8 +5,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset
 import random
 
-# Check if GPU is available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SimpleNN(nn.Module):
     def __init__(self):
@@ -95,14 +94,14 @@ def loss_from_vector(dataset, param_vector, model, criterion):
         for name, param in model.named_parameters():
             param.copy_(grad_dict[name])
 
-    model.to(device)
+    #model.to(device)
     model.eval()
     total_loss = 0
     total_samples = 0
 
     with torch.no_grad():
         for images, labels in dataloader:
-            images, labels = images.to(device), labels.to(device)
+            #images, labels = images.to(device), labels.to(device)
             outputs = model(images)
             loss = criterion(outputs, labels)
             total_loss += loss.item() * len(labels)
@@ -132,7 +131,7 @@ def gradient_from_vector(dataset, param_vector, model, criterion, batch_size=Non
     subset = Subset(dataset, random_indices)
     dataloader = DataLoader(subset, batch_size=64, shuffle=True)
 
-    model.to(device)
+    #model.to(device)
     model.eval()
 
     shapes = {name: param.shape for name, param in model.named_parameters()}
@@ -148,7 +147,7 @@ def gradient_from_vector(dataset, param_vector, model, criterion, batch_size=Non
     total_samples = 0
 
     for images, labels in dataloader:
-        images, labels = images.to(device), labels.to(device)
+        #images, labels = images.to(device), labels.to(device)
         outputs = model(images)
         loss = criterion(outputs, labels)
 
