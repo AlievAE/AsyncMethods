@@ -3,6 +3,7 @@ from worker import Worker
 import numpy as np
 import heapq
 from dataclasses import dataclass
+import torch
 
 @dataclass
 class WorkerState:
@@ -13,13 +14,13 @@ class WorkerState:
         return self.finish_time < other.finish_time
 
 class BaseGD:
-    def __init__(self, initial_x, data, time_distributions, loss_fn, gradient_fns, learning_rate=0.1):
+    def __init__(self, initial_x, data, time_distributions, loss_fn, gradient_fns, learning_rate=0.1, compression_flag = 'none', compression_size = 100):
         """Base class for gradient descent implementations"""
         assert len(gradient_fns) == len(time_distributions), f"Number of gradient functions ({len(gradient_fns)}) \
               must match number of time distributions ({len(time_distributions)})"
         
         self.workers = [
-            Worker(loss_fn, gradient_fns[i], time_distributions[i])
+            Worker(loss_fn, gradient_fns[i], time_distributions[i], compression_flag=compression_flag, k=compression_size, num_of_dim=initial_x.shape[-1])
             for i in range(len(gradient_fns))
         ]
         self.current_x = initial_x
@@ -45,6 +46,7 @@ class MinibatchSGD(BaseGD):
             ]
             
             gradients, times = zip(*gradients_and_times)
+            gradients = [grad.cpu().numpy() if isinstance(grad, torch.Tensor) else grad for grad in gradients]
             avg_gradient = np.mean(gradients, axis=0)
             
             self.current_x = self.current_x - self.learning_rate * avg_gradient
