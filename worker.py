@@ -81,7 +81,7 @@ class Worker:
         if self.compression_flag == 'none':
             return self.current_gradient
         if self.compression_flag == 'randk':
-            compressed = self.randk_compress_vector(self.gradient)
+            compressed = self.randk_compress_vector(self.current_gradient)
         if self.compression_flag == 'topk':
-            compressed = self.topk_compress_vector(self.gradient)
+            compressed = self.topk_compress_vector(self.current_gradient)
         return compressed
