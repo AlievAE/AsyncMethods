@@ -150,3 +150,64 @@ class RennalaSGD(BaseGD):
             self.x_history.append(self.current_x)
 
         return self.current_x, self.loss_history, self.computation_times, self.x_history
+
+
+class AsynchronousNAG(BaseGD):
+    def __init__(
+        self,
+        initial_x,
+        data,
+        time_distributions,
+        loss_fn,
+        accuracy_fn,
+        gradient_fns,
+        learning_rate=0.1,
+        smoothing_window=10,
+        momentum=0.9,  # Nesterov momentum parameter
+    ):
+        super().__init__(
+            initial_x,
+            data,
+            time_distributions,
+            loss_fn,
+            accuracy_fn,
+            gradient_fns,
+            learning_rate,
+            smoothing_window,
+        )
+        self.momentum = momentum
+        self.velocity = np.zeros_like(initial_x)
+
+    def run_steps(self, num_steps):
+        heap = []
+
+        for i, worker in enumerate(self.workers):
+            look_ahead_x = self.current_x - self.momentum * self.velocity
+            gradient, time = worker.compute_gradient(self.data, look_ahead_x)
+            heapq.heappush(heap, WorkerState(i, time + self.current_time))
+
+        for _ in range(num_steps):
+            worker_state = heapq.heappop(heap)
+            worker = self.workers[worker_state.worker_id]
+            self.current_time = worker_state.finish_time
+
+            look_ahead_x = self.current_x - self.momentum * self.velocity
+            gradient, compute_time = worker.compute_gradient(self.data, look_ahead_x)
+
+            self.velocity = (
+                self.momentum * self.velocity - self.learning_rate * gradient
+            )
+
+            self.current_x += self.velocity
+
+            heapq.heappush(
+                heap,
+                WorkerState(worker_state.worker_id, self.current_time + compute_time),
+            )
+
+            self.computation_times.append(self.current_time)
+            self._update_loss_history()
+            self.x_history.append(self.current_x)
+
+        return self.current_x, self.loss_history, self.computation_times, self.x_history
+
